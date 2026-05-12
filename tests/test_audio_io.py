@@ -48,11 +48,11 @@ def test_load_audio_rejects_unsupported_extension(tmp_path):
 
 def test_load_audio_handles_uppercase_extension(tmp_path):
     src = _silence()
-    lower_path = tmp_path / "sample.wav"
-    export_audio(src, lower_path, sample_rate=src.frame_rate)
-
+    # Write directly to an uppercase-suffix path so the test is portable on
+    # case-insensitive filesystems (macOS/Windows), where renaming only the
+    # case of the extension can be a no-op.
     upper_path = tmp_path / "sample.WAV"
-    lower_path.rename(upper_path)
+    export_audio(src, upper_path, sample_rate=src.frame_rate)
 
     loaded = load_audio(upper_path)
     assert loaded.frame_rate == src.frame_rate
