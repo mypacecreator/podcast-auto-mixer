@@ -1,0 +1,10 @@
+# podmix default configuration.
+# All ``*_ms`` values are integer milliseconds; ``bgm_gain_db`` is a relative dB
+# offset; ``output_bitrate`` is the MP3 bitrate string passed to ffmpeg.
+voice_start_ms = 1500
+outro_tail_ms = 3000
+bgm_outro_crossfade_ms = 2000
+bgm_gain_db = -12.0
+sample_rate = 48000
+channels = 2
+output_bitrate = "192k"
