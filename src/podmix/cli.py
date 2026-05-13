@@ -64,10 +64,23 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Mix podcast voice with BGM and an outro tail.",
     )
     p.add_argument("--voice", type=Path, required=True, help="Voice file (WAV/MP3).")
-    p.add_argument("--bgm", type=Path, required=True, help="BGM file (WAV/MP3).")
-    p.add_argument("--outro", type=Path, required=True, help="Outro file (WAV/MP3).")
     p.add_argument(
-        "--output", type=Path, required=True, help="Output file (WAV/MP3)."
+        "--bgm",
+        type=Path,
+        default=None,
+        help="BGM file (WAV/MP3). Defaults to config default_bgm.",
+    )
+    p.add_argument(
+        "--outro",
+        type=Path,
+        default=None,
+        help="Outro file (WAV/MP3). Defaults to config default_outro.",
+    )
+    p.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output file (WAV/MP3). Defaults to output/{voice_stem}_mixed.mp3.",
     )
     p.add_argument(
         "--voice-start",
@@ -88,10 +101,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Seconds of BGM↔outro crossfade (default: config value, built-in 2.0 s).",
     )
     p.add_argument(
+        "--voice-gain",
+        type=_finite_float,
+        default=None,
+        help="Voice gain in dB (default: config value, built-in 0.0 dB).",
+    )
+    p.add_argument(
         "--bgm-gain",
         type=_finite_float,
         default=None,
-        help="BGM gain in dB relative to voice (default: config value, built-in -12.0 dB).",
+        help="BGM gain in dB (default: config value, built-in -18.0 dB).",
+    )
+    p.add_argument(
+        "--outro-gain",
+        type=_finite_float,
+        default=None,
+        help="Outro gain in dB (default: config value, built-in -6.0 dB).",
     )
     p.add_argument(
         "--bitrate",
@@ -123,8 +148,12 @@ def _apply_overrides(cfg: MixConfig, args: argparse.Namespace) -> MixConfig:
         overrides["bgm_outro_crossfade_ms"] = int(
             round(args.bgm_outro_crossfade * 1000)
         )
+    if args.voice_gain is not None:
+        overrides["voice_gain_db"] = float(args.voice_gain)
     if args.bgm_gain is not None:
         overrides["bgm_gain_db"] = float(args.bgm_gain)
+    if args.outro_gain is not None:
+        overrides["outro_gain_db"] = float(args.outro_gain)
     if args.bitrate is not None:
         overrides["output_bitrate"] = args.bitrate
     return replace(cfg, **overrides) if overrides else cfg
@@ -134,14 +163,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     cfg = _apply_overrides(load_config(args.config), args)
 
+    # Resolve file paths: use config defaults if not specified
+    voice_path = args.voice
+    bgm_path = args.bgm if args.bgm is not None else Path(cfg.default_bgm)
+    outro_path = args.outro if args.outro is not None else Path(cfg.default_outro)
+    output_path = (
+        args.output
+        if args.output is not None
+        else Path("output") / f"{voice_path.stem}_mixed.mp3"
+    )
+
     voice = audio_io.normalize_format(
-        audio_io.load_audio(args.voice), cfg.sample_rate, cfg.channels
+        audio_io.load_audio(voice_path), cfg.sample_rate, cfg.channels
     )
     bgm = audio_io.normalize_format(
-        audio_io.load_audio(args.bgm), cfg.sample_rate, cfg.channels
+        audio_io.load_audio(bgm_path), cfg.sample_rate, cfg.channels
     )
     outro = audio_io.normalize_format(
-        audio_io.load_audio(args.outro), cfg.sample_rate, cfg.channels
+        audio_io.load_audio(outro_path), cfg.sample_rate, cfg.channels
     )
 
     mixed = mixer.build_episode(
@@ -151,13 +190,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         voice_start_ms=cfg.voice_start_ms,
         outro_tail_ms=cfg.outro_tail_ms,
         bgm_outro_crossfade_ms=cfg.bgm_outro_crossfade_ms,
+        voice_gain_db=cfg.voice_gain_db,
         bgm_gain_db=cfg.bgm_gain_db,
+        outro_gain_db=cfg.outro_gain_db,
     )
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     audio_io.export_audio(
         mixed,
-        args.output,
+        output_path,
         bitrate=cfg.output_bitrate,
         sample_rate=cfg.sample_rate,
     )

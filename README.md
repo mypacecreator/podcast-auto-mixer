@@ -2,7 +2,7 @@
 
 `podmix` は、ポッドキャストの voice 音源に BGM とアウトロを自動でミックスする Python 製の CLI ツールです。これまで Adobe Audition で手作業していたエピソードのミキシング工程を 1 コマンドで再現することを目的としています。
 
-MVP では voice の有無に応じて BGM を自動で減衰させる **auto-ducking は実装しません**。BGM は `--bgm-gain` で指定した一定の相対音量で voice と並走します。
+**注:** BGM の音量は最初から最後まで一定です。voice の有無に応じて BGM を自動で減衰させる auto-ducking 機能は実装していません。
 
 ## 主な機能
 
@@ -66,17 +66,26 @@ audio/
 ### クイックスタート
 
 ```bash
-# 1. 音源を配置したら、ミックスを実行
-podmix \
-  --voice  audio/voice/ep001.wav \
-  --bgm    audio/bgm/lofi.mp3 \
-  --outro  audio/outro/outro.wav \
-  --output output/ep001.mp3
+# 1. デフォルトの BGM/outro を使う場合 (最もシンプル)
+podmix --voice audio/voice/ep001.wav
 
-# 2. output/ep001.mp3 が生成されます
+# 2. 出力は output/ep001_mixed.mp3 として自動生成されます
 ```
 
-出力ファイルは `output/` フォルダに自動作成されます。
+`--bgm` / `--outro` / `--output` は省略可能です:
+- `--bgm` を省略 → `config/default.toml` の `default_bgm` を使用 (デフォルト: `audio/bgm/bgm_main.wav`)
+- `--outro` を省略 → `config/default.toml` の `default_outro` を使用 (デフォルト: `audio/outro/bgm_end.wav`)
+- `--output` を省略 → `output/{voice_stem}_mixed.mp3` として自動生成
+
+別の BGM やアウトロを使う場合:
+
+```bash
+podmix \
+  --voice  audio/voice/ep001.wav \
+  --bgm    audio/bgm/special.mp3 \
+  --outro  audio/outro/special.wav \
+  --output output/ep001_special.mp3
+```
 
 ### コマンドオプション
 
@@ -84,14 +93,52 @@ podmix \
 
 | オプション | 単位 | デフォルト | 説明 |
 |---|---|---|---|
+| `--voice` | パス | (必須) | Voice 音源ファイル (WAV/MP3) |
+| `--bgm` | パス | `audio/bgm/bgm_main.wav` | BGM 音源ファイル (WAV/MP3) |
+| `--outro` | パス | `audio/outro/bgm_end.wav` | Outro 音源ファイル (WAV/MP3) |
+| `--output` | パス | `output/{voice_stem}_mixed.mp3` | 出力ファイル (WAV/MP3) |
 | `--voice-start` | 秒 (float) | 1.5 | BGM 開始から voice 開始までの先行時間 |
 | `--outro-tail` | 秒 (float) | 3.0 | voice 終了後、アウトロ単独で流れる長さ |
 | `--bgm-outro-crossfade` | 秒 (float) | 2.0 | BGM ↔ アウトロのクロスフェード長 |
-| `--bgm-gain` | dB | -12.0 | BGM の相対音量 (voice 基準、負の値が通常) |
+| `--voice-gain` | dB | 0.0 | Voice の音量調整 |
+| `--bgm-gain` | dB | -18.0 | BGM の音量調整 |
+| `--outro-gain` | dB | -6.0 | Outro の音量調整 |
 | `--bitrate` | 文字列 | `192k` | MP3 出力ビットレート (例: `128k` / `192k` / `256k`) |
 | `--config` | パス | (なし) | デフォルト値を上書きする TOML 設定ファイル |
 
 入出力は拡張子 (`.wav` / `.mp3`) で自動判別されます。
+
+## 音量調整ガイド
+
+各音源の音量は dB (デシベル) 単位で調整できます:
+
+- **`0 dB`**: 原音のまま (変更なし)
+- **`-6 dB`**: 音量が約半分に
+- **`-12 dB`**: 音量が約 1/4 に
+- **`+6 dB`**: 音量が約 2 倍に
+
+### 調整例
+
+**BGM が大きすぎる場合:**
+```bash
+podmix --voice audio/voice/ep001.wav --bgm-gain -24
+```
+
+**voice が小さすぎる場合:**
+```bash
+podmix --voice audio/voice/ep001.wav --voice-gain 3
+```
+
+**全体のバランスを調整:**
+```bash
+podmix \
+  --voice audio/voice/ep001.wav \
+  --voice-gain 2 \
+  --bgm-gain -20 \
+  --outro-gain -8
+```
+
+デフォルト値 (voice: 0 dB / BGM: -18 dB / outro: -6 dB) は `config/default.toml` で変更できます。
 
 ## 設定ファイル
 
@@ -99,24 +146,33 @@ podmix \
 
 ```toml
 # config/default.toml
-voice_start_ms        = 1500   # BGM 先行時間 (ミリ秒)
-outro_tail_ms         = 3000   # voice 後のアウトロ余韻 (ミリ秒)
-bgm_outro_crossfade_ms = 2000  # BGM↔アウトロ クロスフェード (ミリ秒)
-bgm_gain_db           = -12.0  # BGM 音量 (dB、負の値で減衰)
-sample_rate           = 48000  # 出力サンプリングレート (Hz)
-channels              = 2      # 出力チャンネル数 (1=モノラル / 2=ステレオ)
-output_bitrate        = "192k" # MP3 出力ビットレート
+[paths]
+# デフォルトの音源ファイルパス (CLI で省略時に使用)
+default_bgm = "audio/bgm/bgm_main.wav"
+default_outro = "audio/outro/bgm_end.wav"
+
+[mix]
+# ミックスパラメータ (ミリ秒)
+voice_start_ms = 1500          # BGM 先行時間
+outro_tail_ms = 3000           # voice 後のアウトロ余韻
+bgm_outro_crossfade_ms = 2000  # BGM↔アウトロ クロスフェード
+
+# 音量調整 (dB): 0 = 原音、負 = 減衰、正 = 増幅
+voice_gain_db = 0.0
+bgm_gain_db = -18.0
+outro_gain_db = -6.0
+
+[output]
+# 出力パラメータ
+sample_rate = 48000     # 出力サンプリングレート (Hz)
+channels = 2            # 出力チャンネル数 (1=モノラル / 2=ステレオ)
+output_bitrate = "192k" # MP3 出力ビットレート
 ```
 
 設定ファイルを使って実行する場合:
 
 ```bash
-podmix \
-  --voice  audio/voice/ep001.wav \
-  --bgm    audio/bgm/lofi.mp3 \
-  --outro  audio/outro/outro.wav \
-  --output output/ep001.mp3 \
-  --config config/default.toml
+podmix --voice audio/voice/ep001.wav --config config/default.toml
 ```
 
 CLI オプションは設定ファイルより優先されます (CLI > TOML > 組み込みデフォルト)。
@@ -138,7 +194,7 @@ output/       生成された MP3 / WAV の出力先
 config/       デフォルト設定 TOML
 ```
 
-詳細仕様 (時間軸の編集フロー、パラメータの内部単位、CLI 設計の背景など) は [`CLAUDE.md`](./CLAUDE.md) を、フェーズ別の実装ロードマップとモジュール設計の詳細は [`PLAN.md`](./PLAN.md) を参照してください。
+詳細仕様 (時間軸の編集フロー、パラメータの内部単位、CLI 設計の背景など) は [`CLAUDE.md`](./CLAUDE.md) を、実装状況と将来拡張の記録は [`PLAN.md`](./PLAN.md) を参照してください。
 
 ## ライセンス
 

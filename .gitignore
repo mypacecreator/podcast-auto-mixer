@@ -26,6 +26,12 @@ htmlcov/
 .vscode/
 .DS_Store
 
+# Audio files (keep directory structure with .gitkeep)
+audio/voice/*
+audio/bgm/*
+audio/outro/*
+!audio/*/.gitkeep
+
 # Generated audio output (keep output/.gitkeep)
 output/*.mp3
 output/*.wav

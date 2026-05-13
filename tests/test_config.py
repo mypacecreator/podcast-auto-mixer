@@ -14,10 +14,19 @@ def test_load_config_reads_all_fields(tmp_path):
     toml = tmp_path / "custom.toml"
     toml.write_text(
         """
+[paths]
+default_bgm = "audio/bgm/custom.wav"
+default_outro = "audio/outro/custom.wav"
+
+[mix]
 voice_start_ms = 2000
 outro_tail_ms = 4500
 bgm_outro_crossfade_ms = 1500
+voice_gain_db = 2.0
 bgm_gain_db = -9.5
+outro_gain_db = -3.0
+
+[output]
 sample_rate = 44100
 channels = 1
 output_bitrate = "128k"
@@ -26,10 +35,14 @@ output_bitrate = "128k"
 
     cfg = load_config(toml)
 
+    assert cfg.default_bgm == "audio/bgm/custom.wav"
+    assert cfg.default_outro == "audio/outro/custom.wav"
     assert cfg.voice_start_ms == 2000
     assert cfg.outro_tail_ms == 4500
     assert cfg.bgm_outro_crossfade_ms == 1500
+    assert cfg.voice_gain_db == 2.0
     assert cfg.bgm_gain_db == -9.5
+    assert cfg.outro_gain_db == -3.0
     assert cfg.sample_rate == 44100
     assert cfg.channels == 1
     assert cfg.output_bitrate == "128k"
@@ -63,6 +76,26 @@ def test_load_config_partial_keeps_defaults_for_rest(tmp_path):
     assert cfg.voice_start_ms == defaults.voice_start_ms
     assert cfg.bgm_gain_db == defaults.bgm_gain_db
     assert cfg.sample_rate == defaults.sample_rate
+
+
+def test_load_config_flat_structure_backward_compat(tmp_path):
+    """Test that flat (non-sectioned) TOML files still work."""
+    toml = tmp_path / "flat.toml"
+    toml.write_text(
+        """
+voice_start_ms = 1800
+bgm_gain_db = -15.0
+output_bitrate = "128k"
+"""
+    )
+
+    cfg = load_config(toml)
+
+    assert cfg.voice_start_ms == 1800
+    assert cfg.bgm_gain_db == -15.0
+    assert cfg.output_bitrate == "128k"
+    # Other fields should use defaults
+    assert cfg.default_bgm == MixConfig().default_bgm
 
 
 def test_mix_config_is_frozen():
