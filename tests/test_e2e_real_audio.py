@@ -18,6 +18,7 @@ import json
 import math
 import shutil
 import subprocess
+import sys
 import wave
 from pathlib import Path
 
@@ -51,6 +52,8 @@ def _write_tone(
             for i in range(n)
         ),
     )
+    if sys.byteorder == "big":
+        buf.byteswap()
     with wave.open(str(path), "w") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
