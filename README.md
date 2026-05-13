@@ -13,7 +13,7 @@ MVP では voice の有無に応じて BGM を自動で減衰させる **auto-du
 
 ## 必要環境
 
-- Python 3.11 以上
+- Python 3.11 以上 (3.13 / 3.14 も対応済み — `pyaudioop` は自動インストール)
 - [ffmpeg](https://ffmpeg.org/) (pydub のバックエンド)
 
 ## インストール
