@@ -12,11 +12,11 @@ def loop_to_length(
 ) -> AudioSegment:
     """Repeat *track* until it reaches *target_ms*, adding a tiny crossfade at each seam."""
     if target_ms <= 0:
-        return AudioSegment.silent(duration=0, frame_rate=track.frame_rate)
+        return AudioSegment.silent(duration=0, frame_rate=track.frame_rate).set_channels(track.channels).set_sample_width(track.sample_width)
 
     track_ms = len(track)
     if track_ms == 0:
-        return AudioSegment.silent(duration=target_ms, frame_rate=track.frame_rate)
+        return AudioSegment.silent(duration=target_ms, frame_rate=track.frame_rate).set_channels(track.channels).set_sample_width(track.sample_width)
 
     # Cap so each append always makes forward progress
     effective_fade = min(fade_ms, track_ms // 2)
@@ -66,7 +66,7 @@ def build_episode(
     bgm_looped = bgm_looped.fade_out(bgm_outro_crossfade_ms)
     outro = outro.fade_in(bgm_outro_crossfade_ms)
     # Step 6 — composite onto a silent canvas
-    canvas = AudioSegment.silent(duration=total_ms, frame_rate=voice.frame_rate)
+    canvas = AudioSegment.silent(duration=total_ms, frame_rate=voice.frame_rate).set_channels(voice.channels).set_sample_width(voice.sample_width)
     canvas = canvas.overlay(bgm_looped.apply_gain(bgm_gain_db), position=0)
     canvas = canvas.overlay(voice, position=voice_start_ms)
     canvas = canvas.overlay(outro, position=outro_start_ms)
