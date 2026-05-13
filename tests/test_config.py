@@ -173,6 +173,26 @@ def test_load_config_rejects_nonpositive_sample_rate(tmp_path):
         load_config(toml)
 
 
+def test_load_config_ignores_unknown_sections(tmp_path):
+    """Keys inside unknown sections must not override config, even if the key name is valid."""
+    toml = tmp_path / "unknown_section.toml"
+    toml.write_text(
+        """
+[mix]
+voice_start_ms = 2000
+
+[typo]
+voice_start_ms = 9999
+bgm_gain_db = -99.0
+"""
+    )
+
+    cfg = load_config(toml)
+
+    assert cfg.voice_start_ms == 2000
+    assert cfg.bgm_gain_db == MixConfig().bgm_gain_db
+
+
 def test_load_config_rejects_invalid_channels(tmp_path):
     toml = tmp_path / "ch.toml"
     toml.write_text("channels = 3\n")

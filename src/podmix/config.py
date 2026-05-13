@@ -128,12 +128,13 @@ def load_config(path: Path | None) -> MixConfig:
     with Path(path).open("rb") as fp:
         data = tomllib.load(fp)
 
-    # Flatten sections: merge [paths], [mix], [output] into top-level dict
+    # Flatten known sections into top-level dict; unknown sections are ignored
+    _KNOWN_SECTIONS = frozenset({"paths", "mix", "output"})
     flat: dict[str, object] = {}
     for key, value in data.items():
         if isinstance(value, dict):
-            # Merge section contents
-            flat.update(value)
+            if key in _KNOWN_SECTIONS:
+                flat.update(value)
         else:
             # Top-level key (backward compatibility)
             flat[key] = value
