@@ -179,3 +179,58 @@ def test_main_rejects_inf_outro_tail(tmp_path):
                 "--outro-tail", "inf",
             ]
         )
+
+
+def test_main_rejects_negative_voice_start(tmp_path):
+    # A tiny negative value would round to 0 ms and silently pass without
+    # the _nonneg_finite_float guard.
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--voice", str(voice),
+                "--bgm", str(bgm),
+                "--outro", str(outro),
+                "--output", str(output),
+                "--voice-start", "-0.0004",
+            ]
+        )
+
+
+def test_main_rejects_negative_bgm_outro_crossfade(tmp_path):
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--voice", str(voice),
+                "--bgm", str(bgm),
+                "--outro", str(outro),
+                "--output", str(output),
+                "--bgm-outro-crossfade", "-1.5",
+            ]
+        )
+
+
+def test_main_allows_negative_bgm_gain(tmp_path):
+    # --bgm-gain is in dB; negative is the *normal* case (attenuation).
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    rc = main(
+        [
+            "--voice", str(voice),
+            "--bgm", str(bgm),
+            "--outro", str(outro),
+            "--output", str(output),
+            "--voice-start", "0.1",
+            "--outro-tail", "0.5",
+            "--bgm-outro-crossfade", "0.2",
+            "--bgm-gain", "-30",
+        ]
+    )
+    assert rc == 0
+    assert output.exists()

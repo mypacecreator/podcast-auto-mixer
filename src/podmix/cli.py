@@ -38,6 +38,21 @@ def _finite_float(value: str) -> float:
     return v
 
 
+def _nonneg_finite_float(value: str) -> float:
+    """argparse type for time parameters: finite and >= 0.
+
+    Catches slightly-negative inputs like ``-0.0004`` that would otherwise
+    round to ``0`` ms and silently violate the mixer's non-negative time
+    constraint.
+    """
+    v = _finite_float(value)
+    if v < 0:
+        raise argparse.ArgumentTypeError(
+            f"must be a non-negative number of seconds, got {value!r}"
+        )
+    return v
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="podmix",
@@ -51,19 +66,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--voice-start",
-        type=_finite_float,
+        type=_nonneg_finite_float,
         default=None,
         help="Seconds BGM leads voice (default: config value, built-in 1.5 s).",
     )
     p.add_argument(
         "--outro-tail",
-        type=_finite_float,
+        type=_nonneg_finite_float,
         default=None,
         help="Seconds outro tails after voice ends (default: config value, built-in 3.0 s).",
     )
     p.add_argument(
         "--bgm-outro-crossfade",
-        type=_finite_float,
+        type=_nonneg_finite_float,
         default=None,
         help="Seconds of BGM↔outro crossfade (default: config value, built-in 2.0 s).",
     )
