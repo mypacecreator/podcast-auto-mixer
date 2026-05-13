@@ -18,12 +18,24 @@ operate strictly in ms.
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
 
 from podmix import audio_io, mixer
 from podmix.config import MixConfig, load_config
+
+
+def _finite_float(value: str) -> float:
+    """argparse type that rejects non-finite values (nan, inf)."""
+    try:
+        v = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid float: {value!r}")
+    if not math.isfinite(v):
+        raise argparse.ArgumentTypeError(f"must be a finite number, got {value!r}")
+    return v
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -39,33 +51,33 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--voice-start",
-        type=float,
+        type=_finite_float,
         default=None,
-        help="Seconds BGM leads voice (float, default 1.5).",
+        help="Seconds BGM leads voice (default: config value, built-in 1.5 s).",
     )
     p.add_argument(
         "--outro-tail",
-        type=float,
+        type=_finite_float,
         default=None,
-        help="Seconds outro tails after voice ends (float, default 3.0).",
+        help="Seconds outro tails after voice ends (default: config value, built-in 3.0 s).",
     )
     p.add_argument(
         "--bgm-outro-crossfade",
-        type=float,
+        type=_finite_float,
         default=None,
-        help="Seconds of BGM↔outro crossfade (float, default 2.0).",
+        help="Seconds of BGM↔outro crossfade (default: config value, built-in 2.0 s).",
     )
     p.add_argument(
         "--bgm-gain",
-        type=float,
+        type=_finite_float,
         default=None,
-        help="BGM gain in dB relative to voice (float, default -12.0).",
+        help="BGM gain in dB relative to voice (default: config value, built-in -12.0 dB).",
     )
     p.add_argument(
         "--bitrate",
         type=str,
         default=None,
-        help='MP3 output bitrate string, e.g. "192k" (default "192k").',
+        help='MP3 output bitrate string, e.g. "192k" (default: config value, built-in "192k").',
     )
     p.add_argument(
         "--config",

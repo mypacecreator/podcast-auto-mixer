@@ -73,3 +73,31 @@ def test_mix_config_is_frozen():
         assert isinstance(exc, (AttributeError, TypeError))
     else:
         raise AssertionError("MixConfig should be immutable (frozen dataclass)")
+
+
+def test_load_config_rejects_fractional_ms(tmp_path):
+    toml = tmp_path / "frac.toml"
+    toml.write_text("voice_start_ms = 2.5\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="voice_start_ms"):
+        load_config(toml)
+
+
+def test_load_config_coerces_whole_float_to_int(tmp_path):
+    toml = tmp_path / "whole.toml"
+    toml.write_text("voice_start_ms = 2000.0\n")
+
+    cfg = load_config(toml)
+
+    assert cfg.voice_start_ms == 2000
+    assert isinstance(cfg.voice_start_ms, int)
+
+
+def test_load_config_rejects_wrong_type(tmp_path):
+    toml = tmp_path / "wrong.toml"
+    toml.write_text('voice_start_ms = "notanint"\n')
+
+    import pytest
+    with pytest.raises(ValueError, match="voice_start_ms"):
+        load_config(toml)

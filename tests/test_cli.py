@@ -147,3 +147,35 @@ def test_main_propagates_mixer_validation_error(tmp_path):
                 "--bgm-outro-crossfade", "0.1",
             ]
         )
+
+
+def test_main_rejects_nan_voice_start(tmp_path):
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--voice", str(voice),
+                "--bgm", str(bgm),
+                "--outro", str(outro),
+                "--output", str(output),
+                "--voice-start", "nan",
+            ]
+        )
+
+
+def test_main_rejects_inf_outro_tail(tmp_path):
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--voice", str(voice),
+                "--bgm", str(bgm),
+                "--outro", str(outro),
+                "--output", str(output),
+                "--outro-tail", "inf",
+            ]
+        )
