@@ -7,18 +7,29 @@ import warnings
 from pydub import AudioSegment
 
 
+def _silent_like(track: AudioSegment, duration_ms: int) -> AudioSegment:
+    """Return silence that matches *track*'s frame rate, channels, and sample width."""
+    return (
+        AudioSegment.silent(duration=duration_ms, frame_rate=track.frame_rate)
+        .set_channels(track.channels)
+        .set_sample_width(track.sample_width)
+    )
+
+
 def loop_to_length(
     track: AudioSegment, target_ms: int, fade_ms: int = 50
 ) -> AudioSegment:
     """Repeat *track* until it reaches *target_ms*, adding a tiny crossfade at each seam."""
     if fade_ms < 0:
         raise ValueError(f"fade_ms must be >= 0, got {fade_ms}")
-    if target_ms <= 0:
-        return AudioSegment.silent(duration=0, frame_rate=track.frame_rate).set_channels(track.channels).set_sample_width(track.sample_width)
+    if target_ms < 0:
+        raise ValueError(f"target_ms must be >= 0, got {target_ms}")
+    if target_ms == 0:
+        return _silent_like(track, 0)
 
     track_ms = len(track)
     if track_ms == 0:
-        return AudioSegment.silent(duration=target_ms, frame_rate=track.frame_rate).set_channels(track.channels).set_sample_width(track.sample_width)
+        return _silent_like(track, target_ms)
 
     # Cap so each append always makes forward progress
     effective_fade = min(fade_ms, track_ms // 2)
@@ -46,6 +57,7 @@ def build_episode(
     - any time parameter (voice_start_ms, outro_tail_ms, bgm_outro_crossfade_ms) is negative
     - outro is not longer than outro_tail_ms (overlay would degenerate into append)
     - outro is longer than the total episode length (outro_start_ms would be negative)
+    - bgm_outro_crossfade_ms exceeds len(outro) (crossfade would extend past outro end)
     """
     if voice_start_ms < 0 or outro_tail_ms < 0 or bgm_outro_crossfade_ms < 0:
         raise ValueError(
@@ -53,6 +65,11 @@ def build_episode(
         )
     if len(outro) <= outro_tail_ms:
         raise ValueError("outro must be longer than outro_tail_ms")
+    if bgm_outro_crossfade_ms > len(outro):
+        raise ValueError(
+            f"bgm_outro_crossfade_ms ({bgm_outro_crossfade_ms} ms) exceeds "
+            f"outro length ({len(outro)} ms)"
+        )
 
     # Step 1
     total_ms = voice_start_ms + len(voice) + outro_tail_ms
@@ -72,7 +89,7 @@ def build_episode(
             UserWarning,
             stacklevel=2,
         )
-    # Normalise bgm/outro to voice's format so overlay is lossless
+    # Sync bgm/outro format with voice to prevent implicit pydub conversions during overlay
     def _match_fmt(seg: AudioSegment) -> AudioSegment:
         return (
             seg.set_frame_rate(voice.frame_rate)
@@ -90,7 +107,11 @@ def build_episode(
     bgm_looped = bgm_looped.fade_out(bgm_outro_crossfade_ms)
     outro = outro.fade_in(bgm_outro_crossfade_ms)
     # Step 6 — composite onto a silent canvas
-    canvas = AudioSegment.silent(duration=total_ms, frame_rate=voice.frame_rate).set_channels(voice.channels).set_sample_width(voice.sample_width)
+    canvas = (
+        AudioSegment.silent(duration=total_ms, frame_rate=voice.frame_rate)
+        .set_channels(voice.channels)
+        .set_sample_width(voice.sample_width)
+    )
     canvas = canvas.overlay(bgm_looped.apply_gain(bgm_gain_db), position=0)
     canvas = canvas.overlay(voice, position=voice_start_ms)
     canvas = canvas.overlay(outro, position=outro_start_ms)

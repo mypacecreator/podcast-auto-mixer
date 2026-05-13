@@ -66,6 +66,14 @@ class TestLoopToLength:
         assert result.channels == empty.channels
         assert result.sample_width == empty.sample_width
 
+    def test_negative_fade_ms_raises(self):
+        with pytest.raises(ValueError, match="fade_ms must be >= 0"):
+            loop_to_length(_silence(1000), target_ms=500, fade_ms=-1)
+
+    def test_negative_target_ms_raises(self):
+        with pytest.raises(ValueError, match="target_ms must be >= 0"):
+            loop_to_length(_silence(1000), target_ms=-1)
+
 
 # ---------------------------------------------------------------------------
 # build_episode
@@ -128,6 +136,32 @@ class TestBuildEpisodePrecondition:
                 _silence(1000), _silence(3000), _silence(6000),
                 voice_start_ms=1500,
                 outro_tail_ms=3000,
+            )
+
+    def test_raises_when_negative_time_param(self):
+        with pytest.raises(ValueError, match="must all be >= 0"):
+            build_episode(
+                _silence(5000), _silence(3000), _silence(5000),
+                voice_start_ms=-1,
+            )
+        with pytest.raises(ValueError, match="must all be >= 0"):
+            build_episode(
+                _silence(5000), _silence(3000), _silence(5000),
+                outro_tail_ms=-1,
+            )
+        with pytest.raises(ValueError, match="must all be >= 0"):
+            build_episode(
+                _silence(5000), _silence(3000), _silence(5000),
+                bgm_outro_crossfade_ms=-1,
+            )
+
+    def test_raises_when_crossfade_exceeds_outro_length(self):
+        # outro = 4000ms, bgm_outro_crossfade = 5000ms > outro → ValueError
+        with pytest.raises(ValueError, match="bgm_outro_crossfade_ms"):
+            build_episode(
+                _silence(5000), _silence(3000), _silence(4000),
+                outro_tail_ms=2000,
+                bgm_outro_crossfade_ms=5000,
             )
 
     def test_warns_for_very_short_voice(self):
