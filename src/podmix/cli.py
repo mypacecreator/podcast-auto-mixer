@@ -39,16 +39,21 @@ def _finite_float(value: str) -> float:
 
 
 def _nonneg_finite_float(value: str) -> float:
-    """argparse type for time parameters: finite and >= 0.
+    """argparse type for time parameters: finite, >= 0, and *1000-safe.
 
     Catches slightly-negative inputs like ``-0.0004`` that would otherwise
     round to ``0`` ms and silently violate the mixer's non-negative time
-    constraint.
+    constraint, and rejects values so large that ``v * 1000`` overflows
+    (e.g. ``1e308``) before the ms conversion can crash with OverflowError.
     """
     v = _finite_float(value)
     if v < 0:
         raise argparse.ArgumentTypeError(
             f"must be a non-negative number of seconds, got {value!r}"
+        )
+    if not math.isfinite(v * 1000):
+        raise argparse.ArgumentTypeError(
+            f"value is too large to convert to milliseconds, got {value!r}"
         )
     return v
 

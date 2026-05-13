@@ -120,3 +120,30 @@ def test_load_config_rejects_inf_for_int_field(tmp_path):
     import pytest
     with pytest.raises(ValueError, match="voice_start_ms"):
         load_config(toml)
+
+
+def test_load_config_rejects_negative_ms(tmp_path):
+    toml = tmp_path / "neg.toml"
+    toml.write_text("voice_start_ms = -100\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="voice_start_ms"):
+        load_config(toml)
+
+
+def test_load_config_rejects_nonpositive_sample_rate(tmp_path):
+    toml = tmp_path / "sr.toml"
+    toml.write_text("sample_rate = 0\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="sample_rate"):
+        load_config(toml)
+
+
+def test_load_config_rejects_invalid_channels(tmp_path):
+    toml = tmp_path / "ch.toml"
+    toml.write_text("channels = 3\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="channels"):
+        load_config(toml)

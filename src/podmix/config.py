@@ -35,12 +35,28 @@ _FIELD_TYPES: dict[str, type] = {
     "output_bitrate": str,
 }
 
+_NONNEG_MS_FIELDS = frozenset(
+    {"voice_start_ms", "outro_tail_ms", "bgm_outro_crossfade_ms"}
+)
+_ALLOWED_CHANNELS = frozenset({1, 2})
+
+
+def _check_int_range(key: str, iv: int) -> None:
+    """Apply per-field range constraints so errors name the offending key."""
+    if key in _NONNEG_MS_FIELDS and iv < 0:
+        raise ValueError(f"config key {key!r}: must be >= 0, got {iv}")
+    if key == "sample_rate" and iv <= 0:
+        raise ValueError(f"config key {key!r}: must be > 0, got {iv}")
+    if key == "channels" and iv not in _ALLOWED_CHANNELS:
+        raise ValueError(f"config key {key!r}: must be 1 or 2, got {iv}")
+
 
 def _coerce(key: str, value: object) -> object:
     """Validate and coerce a single TOML value to its expected Python type.
 
     Raises ValueError with the offending key name when the value cannot be
-    coerced (e.g. fractional float for an int field, wrong type entirely).
+    coerced (e.g. fractional float for an int field, wrong type entirely) or
+    when an integer field violates its documented range constraint.
     """
     target = _FIELD_TYPES[key]
     if target is int:
@@ -57,6 +73,7 @@ def _coerce(key: str, value: object) -> object:
             raise ValueError(
                 f"config key {key!r}: expected integer value, got {value!r}"
             )
+        _check_int_range(key, iv)
         return iv
     if target is float:
         if isinstance(value, bool) or not isinstance(value, (int, float)):

@@ -215,6 +215,23 @@ def test_main_rejects_negative_bgm_outro_crossfade(tmp_path):
         )
 
 
+def test_main_rejects_overflow_voice_start(tmp_path):
+    # 1e308 * 1000 overflows to inf; should be caught at parse time.
+    voice, bgm, outro = _make_inputs(tmp_path)
+    output = tmp_path / "ep.wav"
+
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--voice", str(voice),
+                "--bgm", str(bgm),
+                "--outro", str(outro),
+                "--output", str(output),
+                "--voice-start", "1e308",
+            ]
+        )
+
+
 def test_main_allows_negative_bgm_gain(tmp_path):
     # --bgm-gain is in dB; negative is the *normal* case (attenuation).
     voice, bgm, outro = _make_inputs(tmp_path)
