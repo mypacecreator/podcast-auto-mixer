@@ -11,6 +11,8 @@ def loop_to_length(
     track: AudioSegment, target_ms: int, fade_ms: int = 50
 ) -> AudioSegment:
     """Repeat *track* until it reaches *target_ms*, adding a tiny crossfade at each seam."""
+    if fade_ms < 0:
+        raise ValueError(f"fade_ms must be >= 0, got {fade_ms}")
     if target_ms <= 0:
         return AudioSegment.silent(duration=0, frame_rate=track.frame_rate).set_channels(track.channels).set_sample_width(track.sample_width)
 
@@ -40,9 +42,15 @@ def build_episode(
 ) -> AudioSegment:
     """Assemble a podcast episode from voice, BGM loop, and outro.
 
-    Raises ValueError when outro is not longer than outro_tail_ms (which would
-    make the overlay degenerate into a simple append).
+    Raises ValueError when:
+    - any time parameter (voice_start_ms, outro_tail_ms, bgm_outro_crossfade_ms) is negative
+    - outro is not longer than outro_tail_ms (overlay would degenerate into append)
+    - outro is longer than the total episode length (outro_start_ms would be negative)
     """
+    if voice_start_ms < 0 or outro_tail_ms < 0 or bgm_outro_crossfade_ms < 0:
+        raise ValueError(
+            "voice_start_ms, outro_tail_ms, and bgm_outro_crossfade_ms must all be >= 0"
+        )
     if len(outro) <= outro_tail_ms:
         raise ValueError("outro must be longer than outro_tail_ms")
 
