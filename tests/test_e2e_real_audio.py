@@ -107,6 +107,7 @@ def test_timing_wav(tmp_path, tone_inputs):
     )
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 def test_timing_mp3(tmp_path, tone_inputs):
     """Timing formula holds for MP3 output (wider tolerance for codec padding)."""
     voice_start_ms = 1500
@@ -179,19 +180,23 @@ def test_ffprobe_metadata(tmp_path, tone_inputs):
     assert rc == 0
 
     result = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", str(output)],
+        [
+            "ffprobe", "-v", "quiet", "-print_format", "json",
+            "-show_streams", "-show_format", str(output),
+        ],
         capture_output=True,
         text=True,
         check=True,
     )
-    streams = json.loads(result.stdout)["streams"]
-    audio = next(s for s in streams if s["codec_type"] == "audio")
+    data = json.loads(result.stdout)
+    audio = next(s for s in data["streams"] if s["codec_type"] == "audio")
 
     assert int(audio["sample_rate"]) == 48_000
     assert int(audio["channels"]) == 2
 
+    # MP3 stream-level duration is often absent; use format.duration instead.
     expected_s = (voice_start_ms + voice_ms + outro_tail_ms) / 1000
-    actual_s = float(audio["duration"])
+    actual_s = float(data["format"]["duration"])
     assert abs(actual_s - expected_s) < 0.2, (
         f"ffprobe duration {actual_s:.3f} s, expected {expected_s:.3f} s"
     )
@@ -252,13 +257,16 @@ def test_outro_present_at_tail(tmp_path, tone_inputs):
 
 def test_default_config_toml_integration(tmp_path, tone_inputs):
     """CLI with --config config/default.toml produces correct duration."""
+    import tomllib
+
     default_toml = _REPO_ROOT / "config" / "default.toml"
     if not default_toml.exists():
         pytest.skip("config/default.toml not found")
 
-    # Default params: voice_start=1500, outro_tail=3000
-    voice_start_ms = 1500
-    outro_tail_ms = 3000
+    with default_toml.open("rb") as f:
+        cfg = tomllib.load(f)
+    voice_start_ms = cfg["voice_start_ms"]
+    outro_tail_ms = cfg["outro_tail_ms"]
     voice_ms = 30_000
 
     voice, bgm, outro = tone_inputs
