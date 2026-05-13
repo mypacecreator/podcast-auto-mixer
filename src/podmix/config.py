@@ -8,6 +8,7 @@ defaults.
 
 from __future__ import annotations
 
+import math
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +48,10 @@ def _coerce(key: str, value: object) -> object:
             raise ValueError(
                 f"config key {key!r}: expected integer, got {type(value).__name__!r}"
             )
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError(
+                f"config key {key!r}: expected finite integer value, got {value!r}"
+            )
         iv = int(value)
         if iv != value:
             raise ValueError(
@@ -58,7 +63,12 @@ def _coerce(key: str, value: object) -> object:
             raise ValueError(
                 f"config key {key!r}: expected number, got {type(value).__name__!r}"
             )
-        return float(value)
+        fv = float(value)
+        if not math.isfinite(fv):
+            raise ValueError(
+                f"config key {key!r}: must be a finite number, got {value!r}"
+            )
+        return fv
     if target is str:
         if not isinstance(value, str):
             raise ValueError(

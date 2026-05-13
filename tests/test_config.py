@@ -101,3 +101,22 @@ def test_load_config_rejects_wrong_type(tmp_path):
     import pytest
     with pytest.raises(ValueError, match="voice_start_ms"):
         load_config(toml)
+
+
+def test_load_config_rejects_nan_for_float_field(tmp_path):
+    # TOML does allow nan/inf literals; _coerce should reject them.
+    toml = tmp_path / "nan.toml"
+    toml.write_text("bgm_gain_db = nan\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="bgm_gain_db"):
+        load_config(toml)
+
+
+def test_load_config_rejects_inf_for_int_field(tmp_path):
+    toml = tmp_path / "inf.toml"
+    toml.write_text("voice_start_ms = inf\n")
+
+    import pytest
+    with pytest.raises(ValueError, match="voice_start_ms"):
+        load_config(toml)
