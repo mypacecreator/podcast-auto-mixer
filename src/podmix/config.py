@@ -1,9 +1,15 @@
 """Configuration dataclass and TOML loader for podmix.
 
-``MixConfig`` holds the small set of mixing parameters that ``mixer.build_episode``
-and ``audio_io.export_audio`` consume. Defaults match the values documented in
-``CLAUDE.md``; ``load_config`` reads a TOML file and overlays its keys onto the
-defaults.
+``MixConfig`` holds the small set of parameters consumed across the mixing
+pipeline:
+
+- ``mixer.build_episode``: timing fields (``voice_start_ms``, ``outro_tail_ms``,
+  ``bgm_outro_crossfade_ms``) and ``bgm_gain_db``.
+- ``audio_io.normalize_format``: ``sample_rate`` and ``channels``.
+- ``audio_io.export_audio``: ``sample_rate`` and ``output_bitrate``.
+
+Defaults match the values documented in ``CLAUDE.md``; ``load_config`` reads a
+TOML file and overlays its keys onto the defaults.
 """
 
 from __future__ import annotations
