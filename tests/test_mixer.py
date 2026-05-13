@@ -54,6 +54,18 @@ class TestLoopToLength:
         result = loop_to_length(_silence(1), target_ms=100)
         assert len(result) == 100
 
+    def test_empty_track_returns_silence_of_target_length(self):
+        empty = AudioSegment.silent(duration=0, frame_rate=FRAME_RATE)
+        result = loop_to_length(empty, target_ms=500)
+        assert len(result) == 500
+
+    def test_empty_track_preserves_format(self):
+        empty = AudioSegment.silent(duration=0, frame_rate=FRAME_RATE)
+        result = loop_to_length(empty, target_ms=200)
+        assert result.frame_rate == FRAME_RATE
+        assert result.channels == empty.channels
+        assert result.sample_width == empty.sample_width
+
 
 # ---------------------------------------------------------------------------
 # build_episode
@@ -107,6 +119,15 @@ class TestBuildEpisodePrecondition:
         with pytest.raises(ValueError):
             build_episode(
                 _silence(5000), _silence(3000), _silence(1000), outro_tail_ms=3000
+            )
+
+    def test_raises_when_outro_longer_than_episode(self):
+        # total_ms = 1500 + 1000 + 3000 = 5500; outro = 6000 → outro_start_ms = -500
+        with pytest.raises(ValueError, match="longer than the total episode length"):
+            build_episode(
+                _silence(1000), _silence(3000), _silence(6000),
+                voice_start_ms=1500,
+                outro_tail_ms=3000,
             )
 
     def test_warns_for_very_short_voice(self):

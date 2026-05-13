@@ -50,6 +50,11 @@ def build_episode(
     total_ms = voice_start_ms + len(voice) + outro_tail_ms
     # Step 2
     outro_start_ms = total_ms - len(outro)
+    if outro_start_ms < 0:
+        raise ValueError(
+            f"outro ({len(outro)} ms) is longer than the total episode length "
+            f"({total_ms} ms); reduce outro length or increase voice/voice_start_ms"
+        )
     # Step 3 — guard for pathologically short voice tracks
     if outro_start_ms < voice_start_ms + bgm_outro_crossfade_ms:
         warnings.warn(
@@ -59,6 +64,17 @@ def build_episode(
             UserWarning,
             stacklevel=2,
         )
+    # Normalise bgm/outro to voice's format so overlay is lossless
+    def _match_fmt(seg: AudioSegment) -> AudioSegment:
+        return (
+            seg.set_frame_rate(voice.frame_rate)
+            .set_channels(voice.channels)
+            .set_sample_width(voice.sample_width)
+        )
+
+    bgm = _match_fmt(bgm)
+    outro = _match_fmt(outro)
+
     # Step 4 — loop BGM to cover its entire region (0 → outro_start + crossfade)
     bgm_end_ms = outro_start_ms + bgm_outro_crossfade_ms
     bgm_looped = loop_to_length(bgm, bgm_end_ms)
