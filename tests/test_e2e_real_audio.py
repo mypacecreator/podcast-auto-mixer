@@ -265,9 +265,11 @@ def test_default_config_toml_integration(tmp_path, tone_inputs):
 
     with default_toml.open("rb") as f:
         cfg = tomllib.load(f)
-    # Support both flat and sectioned structure
-    voice_start_ms = cfg.get("voice_start_ms") or cfg.get("mix", {}).get("voice_start_ms", 1500)
-    outro_tail_ms = cfg.get("outro_tail_ms") or cfg.get("mix", {}).get("outro_tail_ms", 3000)
+    # Support both flat and sectioned structure; use `is not None` to allow 0
+    _flat_vs = cfg.get("voice_start_ms")
+    voice_start_ms = _flat_vs if _flat_vs is not None else cfg.get("mix", {}).get("voice_start_ms", 1500)
+    _flat_ot = cfg.get("outro_tail_ms")
+    outro_tail_ms = _flat_ot if _flat_ot is not None else cfg.get("mix", {}).get("outro_tail_ms", 3000)
     voice_ms = 30_000
 
     voice, bgm, outro = tone_inputs
