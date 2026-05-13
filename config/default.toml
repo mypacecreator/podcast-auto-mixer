@@ -13,9 +13,9 @@ outro_tail_ms = 3000
 bgm_outro_crossfade_ms = 2000
 
 # Volume adjustments (dB): 0 = original, negative = quieter, positive = louder
-voice_gain_db = 0.0
-bgm_gain_db = -18.0
-outro_gain_db = -6.0
+voice_gain_db = 3.0
+bgm_gain_db = -20.0
+outro_gain_db = -17.0
 
 [output]
 sample_rate = 48000

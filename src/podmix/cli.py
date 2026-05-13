@@ -161,7 +161,15 @@ def _apply_overrides(cfg: MixConfig, args: argparse.Namespace) -> MixConfig:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    cfg = _apply_overrides(load_config(args.config), args)
+
+    # Load config: use config/default.toml if it exists and --config not specified
+    config_path = args.config
+    if config_path is None:
+        default_config = Path("config/default.toml")
+        if default_config.exists():
+            config_path = default_config
+
+    cfg = _apply_overrides(load_config(config_path), args)
 
     # Resolve file paths: use config defaults if not specified
     voice_path = args.voice
