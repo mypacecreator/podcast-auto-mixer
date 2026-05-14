@@ -49,9 +49,16 @@ def build_episode(
     voice_start_ms: int = 1500,
     outro_tail_ms: int = 3000,
     bgm_outro_crossfade_ms: int = 2000,
-    bgm_gain_db: float = -12.0,
+    voice_gain_db: float = 0.0,
+    bgm_gain_db: float = -18.0,
+    outro_gain_db: float = -6.0,
 ) -> AudioSegment:
     """Assemble a podcast episode from voice, BGM loop, and outro.
+
+    Gain parameters (voice_gain_db, bgm_gain_db, outro_gain_db) adjust volume in dB:
+    - 0 dB: original volume
+    - negative: quieter (e.g., -6 dB ≈ half volume)
+    - positive: louder (e.g., +6 dB ≈ double volume)
 
     Raises ValueError when:
     - any time parameter (voice_start_ms, outro_tail_ms, bgm_outro_crossfade_ms) is negative
@@ -113,7 +120,7 @@ def build_episode(
         .set_sample_width(voice.sample_width)
     )
     canvas = canvas.overlay(bgm_looped.apply_gain(bgm_gain_db), position=0)
-    canvas = canvas.overlay(voice, position=voice_start_ms)
-    canvas = canvas.overlay(outro, position=outro_start_ms)
+    canvas = canvas.overlay(voice.apply_gain(voice_gain_db), position=voice_start_ms)
+    canvas = canvas.overlay(outro.apply_gain(outro_gain_db), position=outro_start_ms)
 
     return canvas

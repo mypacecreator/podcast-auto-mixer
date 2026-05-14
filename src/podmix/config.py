@@ -1,15 +1,17 @@
 """Configuration dataclass and TOML loader for podmix.
 
-``MixConfig`` holds the small set of parameters consumed across the mixing
-pipeline:
+``MixConfig`` holds the parameters consumed across the mixing pipeline:
 
+- ``paths``: default file paths (``default_bgm``, ``default_outro``)
 - ``mixer.build_episode``: timing fields (``voice_start_ms``, ``outro_tail_ms``,
-  ``bgm_outro_crossfade_ms``) and ``bgm_gain_db``.
-- ``audio_io.normalize_format``: ``sample_rate`` and ``channels``.
-- ``audio_io.export_audio``: ``sample_rate`` and ``output_bitrate``.
+  ``bgm_outro_crossfade_ms``) and gain values (``voice_gain_db``, ``bgm_gain_db``,
+  ``outro_gain_db``)
+- ``audio_io.normalize_format``: ``sample_rate`` and ``channels``
+- ``audio_io.export_audio``: ``sample_rate`` and ``output_bitrate``
 
 Defaults match the values documented in ``CLAUDE.md``; ``load_config`` reads a
-TOML file and overlays its keys onto the defaults.
+TOML file (supporting [paths], [mix], [output] sections) and overlays its keys
+onto the defaults.
 """
 
 from __future__ import annotations
@@ -22,20 +24,31 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class MixConfig:
+    # Paths
+    default_bgm: str = "audio/bgm/bgm_main.wav"
+    default_outro: str = "audio/outro/bgm_end.wav"
+    # Mix parameters
     voice_start_ms: int = 1500
     outro_tail_ms: int = 3000
     bgm_outro_crossfade_ms: int = 2000
-    bgm_gain_db: float = -12.0
+    voice_gain_db: float = 0.0
+    bgm_gain_db: float = -18.0
+    outro_gain_db: float = -6.0
+    # Output parameters
     sample_rate: int = 48000
     channels: int = 2
     output_bitrate: str = "192k"
 
 
 _FIELD_TYPES: dict[str, type] = {
+    "default_bgm": str,
+    "default_outro": str,
     "voice_start_ms": int,
     "outro_tail_ms": int,
     "bgm_outro_crossfade_ms": int,
+    "voice_gain_db": float,
     "bgm_gain_db": float,
+    "outro_gain_db": float,
     "sample_rate": int,
     "channels": int,
     "output_bitrate": str,
@@ -104,9 +117,9 @@ def _coerce(key: str, value: object) -> object:
 def load_config(path: Path | None) -> MixConfig:
     """Load mixing parameters from a TOML file.
 
-    Returns the built-in defaults when *path* is ``None``. Unknown keys in the
-    TOML file are silently ignored so that newer config files remain
-    backward-compatible with older versions of podmix. Known keys are
+    Returns the built-in defaults when *path* is ``None``. The TOML file can use
+    sections ([paths], [mix], [output]) or flat structure (for backward
+    compatibility). Unknown keys are silently ignored. Known keys are
     type-validated and coerced; a ``ValueError`` is raised for any key whose
     value cannot be interpreted as the expected type.
     """
@@ -114,5 +127,17 @@ def load_config(path: Path | None) -> MixConfig:
         return MixConfig()
     with Path(path).open("rb") as fp:
         data = tomllib.load(fp)
-    filtered = {k: _coerce(k, v) for k, v in data.items() if k in _FIELD_TYPES}
+
+    # Flatten known sections into top-level dict; unknown sections are ignored
+    _KNOWN_SECTIONS = frozenset({"paths", "mix", "output"})
+    flat: dict[str, object] = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            if key in _KNOWN_SECTIONS:
+                flat.update(value)
+        else:
+            # Top-level key (backward compatibility)
+            flat[key] = value
+
+    filtered = {k: _coerce(k, v) for k, v in flat.items() if k in _FIELD_TYPES}
     return MixConfig(**filtered)
