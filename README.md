@@ -57,7 +57,7 @@ python3 -m pip show podmix
 復旧 (推奨):
 
 ```bash
-cd /path/to/podcast-auto-mixer
+# cd /path/to/podcast-auto-mixer
 source .venv/bin/activate
 podmix --help
 ```
@@ -65,7 +65,7 @@ podmix --help
 `.venv` が未作成・破損している場合:
 
 ```bash
-cd /path/to/podcast-auto-mixer
+# cd /path/to/podcast-auto-mixer
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
