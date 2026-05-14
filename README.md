@@ -57,7 +57,7 @@ python3 -m pip show podmix
 復旧 (推奨):
 
 ```bash
-cd /path/to/podcast-auto-mixer
+# cd /path/to/podcast-auto-mixer
 source .venv/bin/activate
 podmix --help
 ```
@@ -65,7 +65,7 @@ podmix --help
 `.venv` が未作成・破損している場合:
 
 ```bash
-cd /path/to/podcast-auto-mixer
+# cd /path/to/podcast-auto-mixer
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
@@ -218,7 +218,7 @@ outro_gain_db = -6.0
 [output]
 # 出力パラメータ
 sample_rate = 48000     # 出力サンプリングレート (Hz)
-channels = 2            # 出力チャンネル数 (1=モノラル / 2=ステレオ)
+channels = 1            # 出力チャンネル数 (1=モノラル / 2=ステレオ)
 output_bitrate = "192k" # MP3 出力ビットレート
 ```
 
