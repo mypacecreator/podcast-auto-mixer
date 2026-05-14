@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import Sequence
@@ -63,7 +64,15 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="podmix",
         description="Mix podcast voice with BGM and an outro tail.",
     )
-    p.add_argument("--voice", type=Path, required=True, help="Voice file (WAV/MP3).")
+    p.add_argument(
+        "--voice",
+        type=Path,
+        default=None,
+        help=(
+            "Voice file (WAV/MP3). "
+            "If omitted, all WAV/MP3 files in audio/voice/ are processed."
+        ),
+    )
     p.add_argument(
         "--bgm",
         type=Path,
@@ -159,6 +168,59 @@ def _apply_overrides(cfg: MixConfig, args: argparse.Namespace) -> MixConfig:
     return replace(cfg, **overrides) if overrides else cfg
 
 
+_VOICE_SUFFIXES = frozenset({".wav", ".mp3"})
+
+
+def _collect_voice_files(voice_dir: Path) -> list[Path]:
+    if not voice_dir.is_dir():
+        print(f"Error: voice directory not found: {voice_dir}", file=sys.stderr)
+        raise SystemExit(1)
+    files = sorted(
+        p for p in voice_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in _VOICE_SUFFIXES
+    )
+    if not files:
+        print(f"Error: no WAV/MP3 files found in {voice_dir}", file=sys.stderr)
+        raise SystemExit(1)
+    return files
+
+
+def _process_one(
+    voice_path: Path,
+    output_path: Path,
+    bgm_path: Path,
+    outro_path: Path,
+    cfg: MixConfig,
+) -> None:
+    voice = audio_io.normalize_format(
+        audio_io.load_audio(voice_path), cfg.sample_rate, cfg.channels
+    )
+    bgm = audio_io.normalize_format(
+        audio_io.load_audio(bgm_path), cfg.sample_rate, cfg.channels
+    )
+    outro = audio_io.normalize_format(
+        audio_io.load_audio(outro_path), cfg.sample_rate, cfg.channels
+    )
+    mixed = mixer.build_episode(
+        voice,
+        bgm,
+        outro,
+        voice_start_ms=cfg.voice_start_ms,
+        outro_tail_ms=cfg.outro_tail_ms,
+        bgm_outro_crossfade_ms=cfg.bgm_outro_crossfade_ms,
+        voice_gain_db=cfg.voice_gain_db,
+        bgm_gain_db=cfg.bgm_gain_db,
+        outro_gain_db=cfg.outro_gain_db,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_io.export_audio(
+        mixed,
+        output_path,
+        bitrate=cfg.output_bitrate,
+        sample_rate=cfg.sample_rate,
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
 
@@ -171,43 +233,42 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     cfg = _apply_overrides(load_config(config_path), args)
 
-    # Resolve file paths: use config defaults if not specified
-    voice_path = args.voice
     bgm_path = args.bgm if args.bgm is not None else Path(cfg.default_bgm)
     outro_path = args.outro if args.outro is not None else Path(cfg.default_outro)
-    output_path = (
-        args.output
-        if args.output is not None
-        else Path("output") / f"{voice_path.stem}_mixed.mp3"
-    )
 
-    voice = audio_io.normalize_format(
-        audio_io.load_audio(voice_path), cfg.sample_rate, cfg.channels
-    )
-    bgm = audio_io.normalize_format(
-        audio_io.load_audio(bgm_path), cfg.sample_rate, cfg.channels
-    )
-    outro = audio_io.normalize_format(
-        audio_io.load_audio(outro_path), cfg.sample_rate, cfg.channels
-    )
+    if args.voice is not None:
+        # Single-file mode (existing behaviour)
+        voice_path = args.voice
+        output_path = (
+            args.output
+            if args.output is not None
+            else Path("output") / f"{voice_path.stem}_mixed.mp3"
+        )
+        _process_one(voice_path, output_path, bgm_path, outro_path, cfg)
+        return 0
 
-    mixed = mixer.build_episode(
-        voice,
-        bgm,
-        outro,
-        voice_start_ms=cfg.voice_start_ms,
-        outro_tail_ms=cfg.outro_tail_ms,
-        bgm_outro_crossfade_ms=cfg.bgm_outro_crossfade_ms,
-        voice_gain_db=cfg.voice_gain_db,
-        bgm_gain_db=cfg.bgm_gain_db,
-        outro_gain_db=cfg.outro_gain_db,
-    )
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    audio_io.export_audio(
-        mixed,
-        output_path,
-        bitrate=cfg.output_bitrate,
-        sample_rate=cfg.sample_rate,
-    )
+    # Batch mode: process all WAV/MP3 files in audio/voice/
+    if args.output is not None:
+        print(
+            "Warning: --output is ignored in batch mode; "
+            "outputs are written to output/{stem}_mixed.mp3",
+            file=sys.stderr,
+        )
+    voice_files = _collect_voice_files(Path("audio/voice"))
+    failed: list[Path] = []
+    for voice_path in voice_files:
+        output_path = Path("output") / f"{voice_path.stem}_mixed.mp3"
+        print(f"Processing: {voice_path} -> {output_path}")
+        try:
+            _process_one(voice_path, output_path, bgm_path, outro_path, cfg)
+            print(f"  Done: {output_path}")
+        except Exception as exc:
+            print(f"  Error processing {voice_path}: {exc}", file=sys.stderr)
+            failed.append(voice_path)
+    if failed:
+        print(
+            f"\n{len(failed)} file(s) failed: " + ", ".join(str(p) for p in failed),
+            file=sys.stderr,
+        )
+        return 1
     return 0
