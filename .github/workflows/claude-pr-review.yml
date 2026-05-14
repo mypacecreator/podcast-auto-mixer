@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
@@ -23,11 +24,53 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ""
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
           prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
             Review the PR changes. Focus on code quality, potential bugs, performance, and suggest improvements.
             Write the entire review in Japanese.
-            If no issues are found, post a short explicit comment saying "問題は見つかりませんでした".
-#          claude_args: "--max-turns 5"
+            Use inline comments for code-specific findings.
+            Always post one top-level PR comment in Japanese via `gh pr comment` summarizing results.
+            If no issues are found, the top-level comment must explicitly include "問題は見つかりませんでした".
+          # inlineコメント作成 + PR要約コメント投稿に必要な最小ツールのみ許可
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+
+      - name: Ensure top-level PR comment fallback
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          if [ "${CLAUDE_OUTCOME}" = "success" ]; then
+            result_message='インラインコメントがない場合は、今回の差分で問題は見つかりませんでした。'
+          else
+            result_message='レビュー処理が正常完了していない可能性があります。Runログを確認してください。'
+          fi
+
+          body=$(cat <<EOF
+          <!-- claude-pr-review-fallback -->
+          Claude PRレビューを実行しました。
+          - 実行結果: ${CLAUDE_OUTCOME}
+          - Run: ${RUN_URL}
+
+          ${result_message}
+          EOF
+          )
+
+          # 既存のフォールバックコメント（最新1件）を取得して、毎回更新する
+          fallback_comment_id_query='[.[] | select(.body | contains("<!-- claude-pr-review-fallback -->"))] | sort_by(.created_at) | last | .id // empty'
+          existing_comment_id="$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" --paginate --jq "${fallback_comment_id_query}")"
+
+          if [ -n "${existing_comment_id}" ]; then
+            gh api --method PATCH "repos/${REPO}/issues/comments/${existing_comment_id}" -f body="${body}" >/dev/null
+          else
+            gh api --method POST "repos/${REPO}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
+          fi
