@@ -218,7 +218,7 @@ outro_gain_db = -6.0
 [output]
 # 出力パラメータ
 sample_rate = 48000     # 出力サンプリングレート (Hz)
-channels = 2            # 出力チャンネル数 (1=モノラル / 2=ステレオ)
+channels = 1            # 出力チャンネル数 (1=モノラル / 2=ステレオ)
 output_bitrate = "192k" # MP3 出力ビットレート
 ```
 
