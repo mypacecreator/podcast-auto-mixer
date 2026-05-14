@@ -39,6 +39,42 @@ pip install -e ".[dev]"
 
 インストール後、`podmix --help` でヘルプが表示されることを確認してください。
 
+### トラブルシューティング: `podmix: command not found`
+
+`podmix` は `pip install -e ".[dev]"` で作成される CLI エントリポイントです。
+このエラーは多くの場合、**仮想環境 (`.venv`) が有効化されていない**か、**シェルの `PATH` が上書きされている**ことが原因です。
+
+確認:
+
+```bash
+echo $SHELL
+which -a podmix
+python3 -m pip show podmix
+```
+
+復旧 (推奨):
+
+```bash
+cd /path/to/podcast-auto-mixer
+source .venv/bin/activate
+podmix --help
+```
+
+`.venv` が未作成・破損している場合:
+
+```bash
+cd /path/to/podcast-auto-mixer
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+podmix --help
+```
+
+補足:
+
+- `.zshrc` で `export PATH="..."` と書くと既存 `PATH` を潰すことがあります。通常は `export PATH="/some/path:$PATH"` のように追記してください。
+- 一時的な回避としては `python -m podmix --help` でも実行できます。
+
 ## 音源の準備
 
 3 種類の音源を用意し、リポジトリ内の対応フォルダに配置します。
