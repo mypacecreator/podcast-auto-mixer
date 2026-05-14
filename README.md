@@ -6,6 +6,8 @@
 
 ## 主な機能
 
+- **シングルファイル処理**: 個別のエピソードを指定してミックス
+- **バッチ処理**: `audio/voice/` 内の全 WAV/MP3 ファイルを一括処理
 - BGM を voice より先に開始 (デフォルト 1.5 秒先行)
 - BGM ループを voice と並走させ、voice の末尾でアウトロにクロスフェード
 - アウトロ音源を voice 末尾に **オーバーレイ** (単純な append ではなく、voice 終了後にアウトロ末尾の余韻 `outro_tail_ms` だけが単独で残る)
@@ -90,7 +92,9 @@ podmix --help
 ```
 audio/
 ├── voice/
-│   └── ep001.wav        ← ここに収録音声を置く
+│   ├── ep001.wav        ← ここに収録音声を置く
+│   ├── ep002.wav        ← 複数ファイルを置くとバッチ処理可能
+│   └── ep003.mp3        ← WAV と MP3 混在も可
 ├── bgm/
 │   └── lofi.mp3         ← ここに BGM を置く
 └── outro/
@@ -101,17 +105,30 @@ audio/
 
 ### クイックスタート
 
+**シングルファイル処理** (個別のエピソードを処理):
+
 ```bash
-# 1. デフォルトの BGM/outro を使う場合 (最もシンプル)
+# デフォルトの BGM/outro を使う場合 (最もシンプル)
 podmix --voice audio/voice/ep001.wav
 
-# 2. 出力は output/ep001_mixed.mp3 として自動生成されます
+# 出力は output/ep001_mixed.mp3 として自動生成されます
+```
+
+**バッチ処理** (`audio/voice/` 内の全ファイルを一括処理):
+
+```bash
+# --voice を省略すると、audio/voice/ 内の全 WAV/MP3 を自動処理
+podmix --bgm audio/bgm/lofi.mp3 --outro audio/outro/outro.wav
+
+# 各ファイルは output/{ファイル名}_mixed.mp3 として出力されます
+# 例: ep001.wav → output/ep001_mixed.mp3
+#     ep002.mp3 → output/ep002_mixed.mp3
 ```
 
 `--bgm` / `--outro` / `--output` は省略可能です:
 - `--bgm` を省略 → `config/default.toml` の `default_bgm` を使用 (デフォルト: `audio/bgm/bgm_main.wav`)
 - `--outro` を省略 → `config/default.toml` の `default_outro` を使用 (デフォルト: `audio/outro/bgm_end.wav`)
-- `--output` を省略 → `output/{voice_stem}_mixed.mp3` として自動生成
+- `--output` を省略 → `output/{voice_stem}_mixed.mp3` として自動生成 (バッチモードでは無視されます)
 
 別の BGM やアウトロを使う場合:
 
@@ -129,7 +146,7 @@ podmix \
 
 | オプション | 単位 | デフォルト | 説明 |
 |---|---|---|---|
-| `--voice` | パス | (必須) | Voice 音源ファイル (WAV/MP3) |
+| `--voice` | パス | (任意) | Voice 音源ファイル (WAV/MP3)。省略時は `audio/voice/` 内の全ファイルをバッチ処理 |
 | `--bgm` | パス | `audio/bgm/bgm_main.wav` | BGM 音源ファイル (WAV/MP3) |
 | `--outro` | パス | `audio/outro/bgm_end.wav` | Outro 音源ファイル (WAV/MP3) |
 | `--output` | パス | `output/{voice_stem}_mixed.mp3` | 出力ファイル (WAV/MP3) |
