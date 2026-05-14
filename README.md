@@ -253,7 +253,15 @@ output/       生成された MP3 / WAV の出力先
 config/       デフォルト設定 TOML
 ```
 
-詳細仕様 (時間軸の編集フロー、パラメータの内部単位、CLI 設計の背景など) は [`CLAUDE.md`](./CLAUDE.md) を、実装状況と将来拡張の記録は [`PLAN.md`](./PLAN.md) を参照してください。
+## 技術スタック
+
+- **Python 3.11+** (`tomllib` 標準ライブラリ利用のため)
+- **pydub** — `AudioSegment` の `overlay` / `*` / `fade_in/fade_out` で要件実装
+- **audioop-lts** — Python 3.13+ 向け `audioop` バックポート (pydub の内部依存)
+- **ffmpeg** — pydub のバックエンド (システムにインストール必須)
+- **pytest** — テストフレームワーク
+
+詳細な設計背景や時間軸の導出式は [`CLAUDE.md`](./CLAUDE.md) を、実装状況と将来拡張の記録は [`PLAN.md`](./PLAN.md) を参照してください。
 
 ## ライセンス
 
