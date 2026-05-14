@@ -25,7 +25,11 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
+          # Bypass for `Copilot` actor (GitHub App), because GitHub App actors are not regular collaborators
+          # and /repos/{owner}/{repo}/collaborators/{username}/permission can return 404 (`Copilot is not a user`).
+          # `allowed_non_write_users` is a case-sensitive comma-separated username list (single entry here).
+          allowed_non_write_users: Copilot
           show_full_output: true
           prompt: |
             REPO: ${{ github.repository }}
@@ -43,7 +47,7 @@ jobs:
       - name: Ensure top-level PR comment fallback
         if: always()
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
