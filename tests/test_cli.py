@@ -114,18 +114,123 @@ def test_main_creates_output_directory(tmp_path):
     assert nested.exists()
 
 
-def test_main_requires_voice_argument(tmp_path):
+def test_main_without_voice_enters_batch_mode(tmp_path, monkeypatch):
+    # No audio/voice/ directory under tmp_path → batch mode exits with code 1.
+    monkeypatch.chdir(tmp_path)
     _, bgm, outro = _make_inputs(tmp_path)
     output = tmp_path / "ep.wav"
 
-    with pytest.raises(SystemExit):
-        main(
-            [
-                "--bgm", str(bgm),
-                "--outro", str(outro),
-                "--output", str(output),
-            ]
-        )
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--bgm", str(bgm), "--outro", str(outro), "--output", str(output)])
+    assert exc_info.value.code == 1
+
+
+def test_batch_mode_empty_voice_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "audio" / "voice").mkdir(parents=True)
+    _, bgm, outro = _make_inputs(tmp_path)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--bgm", str(bgm), "--outro", str(outro)])
+    assert exc_info.value.code == 1
+
+
+def test_batch_mode_processes_all_voice_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    voice_dir = tmp_path / "audio" / "voice"
+    voice_dir.mkdir(parents=True)
+    bgm = tmp_path / "bgm.wav"
+    outro = tmp_path / "outro.wav"
+    _write_silence(bgm, 500)
+    _write_silence(outro, 1500)
+    _write_silence(voice_dir / "ep001.wav", 2000)
+    _write_silence(voice_dir / "ep002.wav", 2000)
+
+    rc = main([
+        "--bgm", str(bgm),
+        "--outro", str(outro),
+        "--voice-start", "0.1",
+        "--outro-tail", "0.5",
+        "--bgm-outro-crossfade", "0.2",
+    ])
+
+    assert rc == 0
+    assert (tmp_path / "output" / "ep001_mixed.mp3").exists()
+    assert (tmp_path / "output" / "ep002_mixed.mp3").exists()
+
+
+def test_batch_mode_continues_after_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    voice_dir = tmp_path / "audio" / "voice"
+    voice_dir.mkdir(parents=True)
+    bgm = tmp_path / "bgm.wav"
+    _write_silence(bgm, 500)
+    # outro shorter than outro_tail_ms → build_episode raises ValueError for every file
+    outro = tmp_path / "outro.wav"
+    _write_silence(outro, 200)
+    _write_silence(voice_dir / "ep001.wav", 2000)
+    _write_silence(voice_dir / "ep002.wav", 2000)
+
+    rc = main([
+        "--bgm", str(bgm),
+        "--outro", str(outro),
+        "--voice-start", "0.1",
+        "--outro-tail", "0.5",
+        "--bgm-outro-crossfade", "0.1",
+    ])
+
+    assert rc == 1
+    assert not (tmp_path / "output" / "ep001_mixed.mp3").exists()
+    assert not (tmp_path / "output" / "ep002_mixed.mp3").exists()
+
+
+def test_batch_mode_warns_when_output_specified(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    voice_dir = tmp_path / "audio" / "voice"
+    voice_dir.mkdir(parents=True)
+    bgm = tmp_path / "bgm.wav"
+    outro = tmp_path / "outro.wav"
+    _write_silence(bgm, 500)
+    _write_silence(outro, 1500)
+    _write_silence(voice_dir / "ep001.wav", 2000)
+
+    rc = main([
+        "--bgm", str(bgm),
+        "--outro", str(outro),
+        "--output", str(tmp_path / "ignored.wav"),
+        "--voice-start", "0.1",
+        "--outro-tail", "0.5",
+        "--bgm-outro-crossfade", "0.2",
+    ])
+
+    assert rc == 0
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err
+    assert not (tmp_path / "ignored.wav").exists()
+
+
+def test_batch_mode_sorted_order(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    voice_dir = tmp_path / "audio" / "voice"
+    voice_dir.mkdir(parents=True)
+    bgm = tmp_path / "bgm.wav"
+    outro = tmp_path / "outro.wav"
+    _write_silence(bgm, 500)
+    _write_silence(outro, 1500)
+    _write_silence(voice_dir / "zzz.wav", 2000)
+    _write_silence(voice_dir / "aaa.wav", 2000)
+
+    rc = main([
+        "--bgm", str(bgm),
+        "--outro", str(outro),
+        "--voice-start", "0.1",
+        "--outro-tail", "0.5",
+        "--bgm-outro-crossfade", "0.2",
+    ])
+
+    assert rc == 0
+    assert (tmp_path / "output" / "aaa_mixed.mp3").exists()
+    assert (tmp_path / "output" / "zzz_mixed.mp3").exists()
 
 
 def test_main_propagates_mixer_validation_error(tmp_path):
