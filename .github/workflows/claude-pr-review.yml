@@ -25,7 +25,7 @@ jobs:
         with:
           anthropic_api_key: ""
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           prompt: |
             Review the PR changes. Focus on code quality, potential bugs, performance, and suggest improvements.
             Write the entire review in Japanese.
