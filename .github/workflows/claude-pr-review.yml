@@ -21,8 +21,9 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          direct_prompt: |
+          prompt: |
             Review the PR changes. Focus on code quality, potential bugs, performance, and suggest improvements.
+          claude_args: "--max-turns 5"
