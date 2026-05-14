@@ -26,4 +26,4 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             Review the PR changes. Focus on code quality, potential bugs, performance, and suggest improvements.
-          claude_args: "--max-turns 5"
+#          claude_args: "--max-turns 5"
