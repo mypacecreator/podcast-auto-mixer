@@ -1,0 +1,40 @@
+name: Claude PR Reviewer
+
+# Pull Requestが作成、または更新された時に自動で動かす
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# GitHub上でコメントを書き込むための権限設定
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. コードをチェックアウト（差分を見るためにfetch-depth: 0を指定）
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Claudeを用いたPRレビューアクションの実行
+      # （ここではコミュニティで広く使われている汎用的なAIレビューアクションを使用）
+      - name: Run AI PR Review
+        uses: fluxninja/ai-pr-reviewer@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          debug: false
+          review_simple_changes: false
+          review_comment_lgtm: false
+          # 使用するClaudeのモデルを指定（Sonnetがコスパ・精度が高くおすすめ）
+          anthropic_model: claude-3-7-sonnet-latest
+          # レビューのトーンや指示（日本語で返すように指定）
+          system_message: |
+            あなたはシニアソフトウェアエンジニアです。
+            与えられたPull Requestのコードの差分を読み、バグの可能性、パフォーマンスの問題、可読性の向上について、日本語で的確にレビューコメントをしてください。
+            修正が必要ない場合は、無理に指摘をひねり出す必要はありません。
